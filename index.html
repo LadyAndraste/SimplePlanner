@@ -190,9 +190,36 @@
             border-color: #22c55e;
         }
         
-        .task-item.overdue {
-            border-color: #ef4444;
-            background: #fef2f2;
+        .task-item.recurring {
+            border-left: 4px solid #0ea5e9;
+        }
+        
+        .recurring-badge {
+            background: #0ea5e9;
+            color: white;
+            font-size: 11px;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-weight: 500;
+        }
+        
+        .recurring-section {
+            animation: slideDown 0.3s ease;
+        }
+        
+        @keyframes slideDown {
+            from {
+                opacity: 0;
+                max-height: 0;
+                padding-top: 0;
+                padding-bottom: 0;
+            }
+            to {
+                opacity: 1;
+                max-height: 300px;
+                padding-top: 16px;
+                padding-bottom: 16px;
+            }
         }
         
         .task-header {
@@ -519,7 +546,7 @@
             
             <!-- Tasks Section -->
             <div class="section">
-                <h2 class="section-title">Taken voor vandaag</h2>
+                <h2 class="section-title">Taken vandaag:</h2>
                 
                 <!-- Add Task Form -->
                 <div class="task-form" id="taskForm">
@@ -549,6 +576,60 @@
                     <div class="form-group">
                         <label for="taskLink">M365 Link (optioneel)</label>
                         <input type="url" id="taskLink" placeholder="https://...">
+                    </div>
+                    
+                    <!-- Recurring Options -->
+                    <div class="recurring-section" id="recurringSection" style="display: none; margin-top: 16px; padding: 16px; background: #f0f9ff; border: 1px solid #0ea5e9; border-radius: 6px;">
+                        <div class="form-group">
+                            <label for="recurringType">Herhaling type</label>
+                            <select id="recurringType" onchange="updateRecurringOptions()">
+                                <option value="none">Niet herhalend</option>
+                                <option value="daily">Dagelijks</option>
+                                <option value="weekly">Wekelijks</option>
+                                <option value="monthly">Maandelijks</option>
+                            </select>
+                        </div>
+                        
+                        <div id="weeklyOptions" style="display: none;">
+                            <label style="margin-bottom: 8px; display: block;">Dagen:</label>
+                            <div style="display: flex; flex-wrap: wrap; gap: 8px;">
+                                <label style="display: flex; align-items: center; gap: 4px; font-size: 14px;">
+                                    <input type="checkbox" value="1" class="recurring-day"> Maandag
+                                </label>
+                                <label style="display: flex; align-items: center; gap: 4px; font-size: 14px;">
+                                    <input type="checkbox" value="2" class="recurring-day"> Dinsdag
+                                </label>
+                                <label style="display: flex; align-items: center; gap: 4px; font-size: 14px;">
+                                    <input type="checkbox" value="3" class="recurring-day"> Woensdag
+                                </label>
+                                <label style="display: flex; align-items: center; gap: 4px; font-size: 14px;">
+                                    <input type="checkbox" value="4" class="recurring-day"> Donderdag
+                                </label>
+                                <label style="display: flex; align-items: center; gap: 4px; font-size: 14px;">
+                                    <input type="checkbox" value="5" class="recurring-day"> Vrijdag
+                                </label>
+                                <label style="display: flex; align-items: center; gap: 4px; font-size: 14px;">
+                                    <input type="checkbox" value="6" class="recurring-day"> Zaterdag
+                                </label>
+                                <label style="display: flex; align-items: center; gap: 4px; font-size: 14px;">
+                                    <input type="checkbox" value="0" class="recurring-day"> Zondag
+                                </label>
+                            </div>
+                        </div>
+                        
+                        <div id="monthlyOptions" style="display: none;">
+                            <div class="form-group">
+                                <label for="monthlyDay">Dag van de maand (1-31)</label>
+                                <input type="number" id="monthlyDay" min="1" max="31" value="1">
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div style="margin-top: 12px;">
+                        <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                            <input type="checkbox" id="isRecurring" onchange="toggleRecurringSection()">
+                            <span style="font-weight: 500;">🔄 Maak dit een terugkerende taak</span>
+                        </label>
                     </div>
                     
                     <!-- Suggestions -->
@@ -602,6 +683,7 @@
             
             loadTodaysTasks();
             checkForYesterdayTasks();
+            checkForRecurringTasks(); // Check for new recurring tasks
             setupFormValidation();
             generateSuggestions();
             
@@ -768,6 +850,10 @@
             durationInput.addEventListener('input', validateForm);
             titleInput.addEventListener('input', generateSuggestions);
             
+            // Also validate when recurring options change
+            document.getElementById('isRecurring').addEventListener('change', validateForm);
+            document.getElementById('recurringType').addEventListener('change', validateForm);
+            
             titleInput.addEventListener('keypress', function(e) {
                 if (e.key === 'Enter' && !addBtn.disabled) {
                     addTask();
@@ -786,10 +872,33 @@
             const duration = parseInt(document.getElementById('taskDuration').value);
             const deadline = document.getElementById('taskDeadline').value;
             const link = document.getElementById('taskLink').value.trim();
+            const isRecurring = document.getElementById('isRecurring').checked;
             
             if (!title || !time || !duration) {
                 showNotification('Vul alle verplichte velden in', 'error');
                 return;
+            }
+            
+            let recurring = null;
+            if (isRecurring) {
+                const recurringType = document.getElementById('recurringType').value;
+                
+                if (recurringType === 'weekly') {
+                    const selectedDays = Array.from(document.querySelectorAll('.recurring-day:checked')).map(cb => parseInt(cb.value));
+                    if (selectedDays.length === 0) {
+                        showNotification('Selecteer minimaal één dag voor wekelijkse herhaling', 'error');
+                        return;
+                    }
+                    recurring = { type: 'weekly', days: selectedDays };
+                } else if (recurringType === 'monthly') {
+                    const monthlyDay = parseInt(document.getElementById('monthlyDay').value);
+                    recurring = { type: 'monthly', dayOfMonth: monthlyDay };
+                } else if (recurringType === 'daily') {
+                    recurring = { type: 'daily' };
+                } else {
+                    showNotification('Selecteer een herhalingstype', 'error');
+                    return;
+                }
             }
             
             const task = {
@@ -801,15 +910,24 @@
                 link: link || null,
                 completed: false,
                 date: new Date().toISOString(),
-                createdAt: new Date().toISOString()
+                createdAt: new Date().toISOString(),
+                recurring: recurring,
+                isRecurringInstance: false
             };
             
             tasks.push(task);
+            
+            // If recurring, save the pattern globally
+            if (recurring) {
+                saveRecurringTemplate(task);
+            }
+            
             saveTasks();
             renderTasks();
             clearForm();
             
-            showNotification(`Taak toegevoegd! Gepland om ${time}`, 'success');
+            const recurringText = recurring ? ' (terugkerend)' : '';
+            showNotification(`Taak toegevoegd! Gepland om ${time}${recurringText}`, 'success');
             document.getElementById('suggestions').style.display = 'none';
         }
         
@@ -818,6 +936,11 @@
             document.getElementById('taskDuration').value = '';
             document.getElementById('taskDeadline').value = '';
             document.getElementById('taskLink').value = '';
+            document.getElementById('isRecurring').checked = false;
+            document.getElementById('recurringType').value = 'none';
+            document.querySelectorAll('.recurring-day').forEach(cb => cb.checked = false);
+            document.getElementById('monthlyDay').value = '1';
+            document.getElementById('recurringSection').style.display = 'none';
             document.getElementById('addTaskBtn').disabled = true;
             document.getElementById('taskForm').classList.remove('active');
             
@@ -855,17 +978,21 @@
             taskList.innerHTML = sortedTasks.map(task => {
                 let itemClass = 'task-item';
                 if (task.completed) itemClass += ' completed';
+                if (task.recurring || task.isRecurringInstance) itemClass += ' recurring';
                 
                 // Check if overdue (deadline passed)
                 if (task.deadline && task.deadline < today && !task.completed) {
                     itemClass += ' overdue';
                 }
                 
+                const recurringBadge = (task.recurring || task.isRecurringInstance) ? 
+                    `<span class="recurring-badge">🔄 ${getRecurringLabel(task)}</span>` : '';
+                
                 return `
                     <div class="${itemClass}">
                         <div class="task-header">
                             <div>
-                                <div class="task-title">${escapeHtml(task.title)}</div>
+                                <div class="task-title">${escapeHtml(task.title)} ${recurringBadge}</div>
                                 <div class="task-meta">
                                     <span>⏰ ${task.time}</span>
                                     <span>⏱️ ${task.duration} min</span>
@@ -877,6 +1004,7 @@
                                 <input type="checkbox" class="checkbox" ${task.completed ? 'checked' : ''} 
                                        onchange="toggleTask(${task.id})">
                                 ${task.link ? `<button class="btn link-btn" onclick="openLink('${task.link}')">Open</button>` : ''}
+                                ${task.recurring ? `<button class="btn btn-secondary" onclick="manageRecurring(${task.id})" style="font-size: 12px; padding: 4px 8px;">Beheer</button>` : ''}
                                 <button class="btn delete-btn" onclick="deleteTask(${task.id})">×</button>
                             </div>
                         </div>
@@ -1134,6 +1262,236 @@
             return div.innerHTML;
         }
         
+        // ===== RECURRING TASKS FUNCTIONS =====
+        
+        function toggleRecurringSection() {
+            const isChecked = document.getElementById('isRecurring').checked;
+            const section = document.getElementById('recurringSection');
+            
+            if (isChecked) {
+                section.style.display = 'block';
+                document.getElementById('recurringType').value = 'weekly'; // Default to weekly
+                updateRecurringOptions();
+            } else {
+                section.style.display = 'none';
+                document.getElementById('recurringType').value = 'none';
+            }
+        }
+        
+        function updateRecurringOptions() {
+            const type = document.getElementById('recurringType').value;
+            const weeklyOptions = document.getElementById('weeklyOptions');
+            const monthlyOptions = document.getElementById('monthlyOptions');
+            
+            // Hide all options first
+            weeklyOptions.style.display = 'none';
+            monthlyOptions.style.display = 'none';
+            
+            if (type === 'weekly') {
+                weeklyOptions.style.display = 'block';
+                // Default to current day of week
+                const today = new Date().getDay();
+                document.querySelector(`input[value="${today}"].recurring-day`).checked = true;
+            } else if (type === 'monthly') {
+                monthlyOptions.style.display = 'block';
+                // Default to current day of month
+                document.getElementById('monthlyDay').value = new Date().getDate();
+            }
+        }
+        
+        function saveRecurringTemplate(task) {
+            let recurringTemplates = JSON.parse(localStorage.getItem('recurring-templates') || '[]');
+            
+            const template = {
+                id: task.id,
+                title: task.title,
+                time: task.time,
+                duration: task.duration,
+                link: task.link,
+                recurring: task.recurring,
+                createdDate: getTodayKey(),
+                active: true
+            };
+            
+            recurringTemplates.push(template);
+            localStorage.setItem('recurring-templates', JSON.stringify(recurringTemplates));
+        }
+        
+        function checkForRecurringTasks() {
+            const recurringTemplates = JSON.parse(localStorage.getItem('recurring-templates') || '[]');
+            const today = new Date();
+            const todayKey = getTodayKey();
+            
+            recurringTemplates.forEach(template => {
+                if (!template.active) return;
+                
+                const shouldCreateToday = shouldCreateRecurringTask(template, today);
+                
+                if (shouldCreateToday) {
+                    // Check if we already created this recurring task today
+                    const existingTask = tasks.find(task => 
+                        task.isRecurringInstance && 
+                        task.recurringTemplateId === template.id
+                    );
+                    
+                    if (!existingTask && tasks.length < 3) {
+                        const recurringTask = {
+                            id: Date.now() + Math.random(), // Unique ID
+                            title: template.title,
+                            time: template.time,
+                            duration: template.duration,
+                            link: template.link,
+                            completed: false,
+                            date: new Date().toISOString(),
+                            createdAt: new Date().toISOString(),
+                            isRecurringInstance: true,
+                            recurringTemplateId: template.id,
+                            recurring: template.recurring
+                        };
+                        
+                        tasks.push(recurringTask);
+                    }
+                }
+            });
+            
+            if (tasks.some(t => t.isRecurringInstance)) {
+                saveTasks();
+                renderTasks();
+            }
+        }
+        
+        function shouldCreateRecurringTask(template, date) {
+            const dayOfWeek = date.getDay(); // 0 = Sunday, 1 = Monday, etc.
+            const dayOfMonth = date.getDate();
+            
+            switch (template.recurring.type) {
+                case 'daily':
+                    return true;
+                    
+                case 'weekly':
+                    return template.recurring.days.includes(dayOfWeek);
+                    
+                case 'monthly':
+                    return dayOfMonth === template.recurring.dayOfMonth;
+                    
+                default:
+                    return false;
+            }
+        }
+        
+        function getRecurringLabel(task) {
+            if (!task.recurring) return '';
+            
+            const recurring = task.recurring;
+            
+            switch (recurring.type) {
+                case 'daily':
+                    return 'Dagelijks';
+                    
+                case 'weekly':
+                    const dayNames = ['Zo', 'Ma', 'Di', 'Wo', 'Do', 'Vr', 'Za'];
+                    const days = recurring.days.map(d => dayNames[d]).join(', ');
+                    return `Wekelijks (${days})`;
+                    
+                case 'monthly':
+                    return `Maandelijks (${recurring.dayOfMonth}e)`;
+                    
+                default:
+                    return 'Terugkerend';
+            }
+        }
+        
+        function manageRecurring(taskId) {
+            const task = tasks.find(t => t.id === taskId);
+            if (!task || !task.recurring) return;
+            
+            const options = [
+                'Terugkerende taak bewerken',
+                'Terugkerende taak stoppen',
+                'Alleen vandaag overslaan'
+            ];
+            
+            const choice = prompt(
+                `Terugkerende taak: "${task.title}"\n` +
+                `Patroon: ${getRecurringLabel(task)}\n\n` +
+                `Kies een actie:\n` +
+                `1. Bewerken (titel, tijd, etc.)\n` +
+                `2. Permanent stoppen\n` +
+                `3. Alleen vandaag overslaan\n\n` +
+                `Type het nummer (1, 2, of 3):`
+            );
+            
+            switch (choice) {
+                case '1':
+                    editRecurringTask(task);
+                    break;
+                case '2':
+                    stopRecurringTask(task);
+                    break;
+                case '3':
+                    skipRecurringToday(task);
+                    break;
+                default:
+                    showNotification('Geen geldige keuze', 'info');
+            }
+        }
+        
+        function editRecurringTask(task) {
+            const newTitle = prompt('Nieuwe titel:', task.title);
+            const newTime = prompt('Nieuwe tijd (HH:MM):', task.time);
+            const newDuration = prompt('Nieuwe duur (minuten):', task.duration);
+            
+            if (newTitle && newTime && newDuration) {
+                // Update template
+                let templates = JSON.parse(localStorage.getItem('recurring-templates') || '[]');
+                const templateIndex = templates.findIndex(t => t.id === (task.recurringTemplateId || task.id));
+                
+                if (templateIndex >= 0) {
+                    templates[templateIndex].title = newTitle.trim();
+                    templates[templateIndex].time = newTime;
+                    templates[templateIndex].duration = parseInt(newDuration);
+                    localStorage.setItem('recurring-templates', JSON.stringify(templates));
+                }
+                
+                // Update current task
+                task.title = newTitle.trim();
+                task.time = newTime;
+                task.duration = parseInt(newDuration);
+                
+                saveTasks();
+                renderTasks();
+                showNotification('Terugkerende taak bijgewerkt!', 'success');
+            }
+        }
+        
+        function stopRecurringTask(task) {
+            if (confirm('Weet je zeker dat je deze terugkerende taak permanent wilt stoppen?')) {
+                // Deactivate template
+                let templates = JSON.parse(localStorage.getItem('recurring-templates') || '[]');
+                const templateIndex = templates.findIndex(t => t.id === (task.recurringTemplateId || task.id));
+                
+                if (templateIndex >= 0) {
+                    templates[templateIndex].active = false;
+                    localStorage.setItem('recurring-templates', JSON.stringify(templates));
+                }
+                
+                // Remove current task
+                tasks = tasks.filter(t => t.id !== task.id);
+                saveTasks();
+                renderTasks();
+                
+                showNotification('Terugkerende taak gestopt', 'info');
+            }
+        }
+        
+        function skipRecurringToday(task) {
+            // Simply remove today's instance
+            tasks = tasks.filter(t => t.id !== task.id);
+            saveTasks();
+            renderTasks();
+            showNotification('Vandaag overgeslagen - komt morgen terug', 'info');
+        }
+        
         // ===== BACKUP & EXPORT FUNCTIONS =====
         
         function exportData() {
@@ -1141,6 +1499,7 @@
                 version: '1.0',
                 exportDate: new Date().toISOString(),
                 taskHistory: allTaskHistory,
+                recurringTemplates: JSON.parse(localStorage.getItem('recurring-templates') || '[]'),
                 settings: {
                     lastBackup: new Date().toISOString()
                 }
@@ -1226,8 +1585,14 @@
                         allTaskHistory = data.taskHistory;
                         localStorage.setItem('all-task-history', JSON.stringify(allTaskHistory));
                         
+                        // Import recurring templates if available
+                        if (data.recurringTemplates) {
+                            localStorage.setItem('recurring-templates', JSON.stringify(data.recurringTemplates));
+                        }
+                        
                         // Reload today's tasks
                         loadTodaysTasks();
+                        checkForRecurringTasks(); // Check for recurring tasks after import
                         
                         showNotification('✅ Data geïmporteerd! Pre-import backup bewaard.', 'success');
                         updateDataStats();
@@ -1269,6 +1634,9 @@
             if (!statsDiv) return;
             
             const totalDays = Object.keys(allTaskHistory).length;
+            const recurringTemplates = JSON.parse(localStorage.getItem('recurring-templates') || '[]');
+            const activeRecurringCount = recurringTemplates.filter(t => t.active).length;
+            
             let totalTasks = 0;
             let completedTasks = 0;
             let totalMinutes = 0;
@@ -1290,6 +1658,7 @@
                     <div><strong>📝 Totaal taken:</strong><br>${totalTasks}</div>
                     <div><strong>✅ Voltooide taken:</strong><br>${completedTasks} (${totalTasks > 0 ? Math.round(completedTasks/totalTasks*100) : 0}%)</div>
                     <div><strong>⏱️ Totale tijd:</strong><br>${Math.round(totalMinutes/60*10)/10} uur</div>
+                    <div><strong>🔄 Terugkerende taken:</strong><br>${activeRecurringCount} actief</div>
                     <div><strong>💾 Data grootte:</strong><br>${dataSizeKB} KB</div>
                     <div><strong>📊 Gemiddeld per dag:</strong><br>${totalDays > 0 ? Math.round(totalTasks/totalDays*10)/10 : 0} taken</div>
                 </div>
