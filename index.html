@@ -412,7 +412,7 @@
             display: block;
         }
         
-        #historyView {
+        #historyView, #backupView {
             display: none;
         }
         
@@ -452,7 +452,52 @@
             <div class="nav-tabs">
                 <button class="nav-tab active" onclick="switchView('today')">Vandaag</button>
                 <button class="nav-tab" onclick="switchView('history')">Geschiedenis</button>
+                <button class="nav-tab" onclick="switchView('backup')">Backup</button>
+            <!-- Backup View -->
+        <div id="backupView">
+            <div class="section">
+                <h2 class="section-title">🔒 Data Backup & Import</h2>
+                
+                <!-- Backup Info -->
+                <div class="daily-review" style="display: block;">
+                    <h3>📊 Je data wordt automatisch gebackupt</h3>
+                    <p>Elke keer als je een taak voltooit wordt automatisch een backup gedownload. Je kunt ook handmatig een backup maken of oude data importeren.</p>
+                </div>
+                
+                <!-- Manual Backup -->
+                <div class="section" style="margin-bottom: 24px;">
+                    <h3 style="margin-bottom: 16px;">📥 Backup maken</h3>
+                    <div class="review-actions">
+                        <button class="btn btn-success" onclick="exportData()">Download alle data</button>
+                        <button class="btn btn-secondary" onclick="exportTodayOnly()">Alleen vandaag downloaden</button>
+                    </div>
+                    <p style="margin-top: 12px; color: #6b7280; font-size: 14px;">
+                        <strong>Laatste backup:</strong> <span id="lastBackupTime">Nog geen backup gemaakt</span>
+                    </p>
+                </div>
+                
+                <!-- Import Data -->
+                <div class="section">
+                    <h3 style="margin-bottom: 16px;">📤 Data importeren</h3>
+                    <div class="review-actions">
+                        <label class="btn btn-primary" style="cursor: pointer;">
+                            Backup bestand selecteren
+                            <input type="file" accept=".json" onchange="importData(event)" style="display: none;">
+                        </label>
+                        <button class="btn btn-danger" onclick="clearAllData()">Alle data wissen</button>
+                    </div>
+                    <p style="margin-top: 12px; color: #6b7280; font-size: 14px;">
+                        Let op: Importeren overschrijft je huidige data! Maak eerst een backup.
+                    </p>
+                </div>
+                
+                <!-- Data Stats -->
+                <div class="section">
+                    <h3 style="margin-bottom: 16px;">📈 Data statistieken</h3>
+                    <div id="dataStats" style="background: #f8fafc; padding: 16px; border-radius: 8px; border: 1px solid #e2e8f0;"></div>
+                </div>
             </div>
+        </div>
         </div>
         
         <!-- Today View -->
@@ -855,6 +900,12 @@
                 
                 if (task.completed) {
                     showNotification(`Taak voltooid! 🎉`, 'success');
+                    
+                    // Trigger auto backup when first task of day is completed
+                    const completedToday = tasks.filter(t => t.completed).length;
+                    if (completedToday === 1) {
+                        setTimeout(autoBackup, 1000); // Delay to ensure UI updates first
+                    }
                 } else {
                     showNotification('Taak weer geactiveerd', 'info');
                 }
@@ -944,12 +995,21 @@
             if (view === 'today') {
                 document.getElementById('currentView').style.display = 'block';
                 document.getElementById('historyView').style.display = 'none';
+                document.getElementById('backupView').style.display = 'none';
                 document.querySelector('[onclick="switchView(\'today\')"]').classList.add('active');
             } else if (view === 'history') {
                 document.getElementById('currentView').style.display = 'none';
                 document.getElementById('historyView').style.display = 'block';
+                document.getElementById('backupView').style.display = 'none';
                 document.querySelector('[onclick="switchView(\'history\')"]').classList.add('active');
                 loadHistoryForDate();
+            } else if (view === 'backup') {
+                document.getElementById('currentView').style.display = 'none';
+                document.getElementById('historyView').style.display = 'none';
+                document.getElementById('backupView').style.display = 'block';
+                document.querySelector('[onclick="switchView(\'backup\')"]').classList.add('active');
+                updateDataStats();
+                updateLastBackupTime();
             }
         }
         
@@ -1072,6 +1132,211 @@
             const div = document.createElement('div');
             div.textContent = text;
             return div.innerHTML;
+        }
+        
+        // ===== BACKUP & EXPORT FUNCTIONS =====
+        
+        function exportData() {
+            const data = {
+                version: '1.0',
+                exportDate: new Date().toISOString(),
+                taskHistory: allTaskHistory,
+                settings: {
+                    lastBackup: new Date().toISOString()
+                }
+            };
+            
+            const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `dagplanner-backup-${new Date().toISOString().split('T')[0]}.json`;
+            link.click();
+            
+            URL.revokeObjectURL(url);
+            
+            // Update last backup time
+            localStorage.setItem('lastBackupTime', new Date().toISOString());
+            updateLastBackupTime();
+            
+            showNotification('🔒 Backup gedownload!', 'success');
+        }
+        
+        function exportTodayOnly() {
+            const todayKey = getTodayKey();
+            const todayData = allTaskHistory[todayKey];
+            
+            if (!todayData) {
+                showNotification('Geen data voor vandaag om te exporteren', 'warning');
+                return;
+            }
+            
+            const data = {
+                version: '1.0',
+                exportDate: new Date().toISOString(),
+                taskHistory: {
+                    [todayKey]: todayData
+                }
+            };
+            
+            const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `dagplanner-vandaag-${todayKey}.json`;
+            link.click();
+            
+            URL.revokeObjectURL(url);
+            showNotification('📅 Vandaag geëxporteerd!', 'success');
+        }
+        
+        function importData(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            
+            if (!file.name.endsWith('.json')) {
+                showNotification('❌ Alleen JSON bestanden zijn toegestaan', 'error');
+                return;
+            }
+            
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const data = JSON.parse(e.target.result);
+                    
+                    if (!data.taskHistory) {
+                        showNotification('❌ Ongeldig backup bestand', 'error');
+                        return;
+                    }
+                    
+                    if (confirm('⚠️ Dit overschrijft al je huidige data!\n\nWeet je het zeker?')) {
+                        // Backup current data first
+                        const currentBackup = {
+                            version: '1.0',
+                            exportDate: new Date().toISOString(),
+                            taskHistory: allTaskHistory,
+                            isPreImportBackup: true
+                        };
+                        
+                        localStorage.setItem('preImportBackup', JSON.stringify(currentBackup));
+                        
+                        // Import new data
+                        allTaskHistory = data.taskHistory;
+                        localStorage.setItem('all-task-history', JSON.stringify(allTaskHistory));
+                        
+                        // Reload today's tasks
+                        loadTodaysTasks();
+                        
+                        showNotification('✅ Data geïmporteerd! Pre-import backup bewaard.', 'success');
+                        updateDataStats();
+                    }
+                    
+                } catch (error) {
+                    console.error('Import error:', error);
+                    showNotification('❌ Fout bij importeren: ' + error.message, 'error');
+                }
+            };
+            
+            reader.readAsText(file);
+            event.target.value = ''; // Reset file input
+        }
+        
+        function clearAllData() {
+            const confirmation = prompt('⚠️ ALLE DATA WORDT GEWIST!\n\nType "WISSEN" om te bevestigen:');
+            
+            if (confirmation === 'WISSEN') {
+                // Create final backup before clearing
+                exportData();
+                
+                setTimeout(() => {
+                    localStorage.clear();
+                    allTaskHistory = {};
+                    tasks = [];
+                    
+                    renderTasks();
+                    showNotification('🗑️ Alle data gewist. Backup is gedownload.', 'warning');
+                    updateDataStats();
+                }, 1000);
+            } else {
+                showNotification('Wissen geannuleerd', 'info');
+            }
+        }
+        
+        function updateDataStats() {
+            const statsDiv = document.getElementById('dataStats');
+            if (!statsDiv) return;
+            
+            const totalDays = Object.keys(allTaskHistory).length;
+            let totalTasks = 0;
+            let completedTasks = 0;
+            let totalMinutes = 0;
+            
+            Object.values(allTaskHistory).forEach(day => {
+                if (day.tasks) {
+                    totalTasks += day.tasks.length;
+                    completedTasks += day.tasks.filter(t => t.completed).length;
+                    totalMinutes += day.tasks.reduce((sum, t) => sum + (t.duration || 0), 0);
+                }
+            });
+            
+            const dataSize = new Blob([localStorage.getItem('all-task-history') || '']).size;
+            const dataSizeKB = Math.round(dataSize / 1024 * 100) / 100;
+            
+            statsDiv.innerHTML = `
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px;">
+                    <div><strong>📅 Dagen met data:</strong><br>${totalDays}</div>
+                    <div><strong>📝 Totaal taken:</strong><br>${totalTasks}</div>
+                    <div><strong>✅ Voltooide taken:</strong><br>${completedTasks} (${totalTasks > 0 ? Math.round(completedTasks/totalTasks*100) : 0}%)</div>
+                    <div><strong>⏱️ Totale tijd:</strong><br>${Math.round(totalMinutes/60*10)/10} uur</div>
+                    <div><strong>💾 Data grootte:</strong><br>${dataSizeKB} KB</div>
+                    <div><strong>📊 Gemiddeld per dag:</strong><br>${totalDays > 0 ? Math.round(totalTasks/totalDays*10)/10 : 0} taken</div>
+                </div>
+            `;
+        }
+        
+        function updateLastBackupTime() {
+            const lastBackupEl = document.getElementById('lastBackupTime');
+            if (!lastBackupEl) return;
+            
+            const lastBackup = localStorage.getItem('lastBackupTime');
+            if (lastBackup) {
+                const date = new Date(lastBackup);
+                lastBackupEl.textContent = date.toLocaleString('nl-NL');
+            }
+        }
+        
+        function autoBackup() {
+            // Auto backup when completing tasks or at end of day
+            const lastAutoBackup = localStorage.getItem('lastAutoBackup');
+            const today = getTodayKey();
+            
+            if (lastAutoBackup !== today) {
+                const completedToday = tasks.filter(t => t.completed).length;
+                
+                if (completedToday > 0) {
+                    // Silent backup
+                    const data = {
+                        version: '1.0',
+                        exportDate: new Date().toISOString(),
+                        taskHistory: allTaskHistory,
+                        isAutoBackup: true
+                    };
+                    
+                    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+                    const url = URL.createObjectURL(blob);
+                    
+                    const link = document.createElement('a');
+                    link.href = url;
+                    link.download = `dagplanner-auto-${today}.json`;
+                    link.click();
+                    
+                    URL.revokeObjectURL(url);
+                    localStorage.setItem('lastAutoBackup', today);
+                    localStorage.setItem('lastBackupTime', new Date().toISOString());
+                }
+            }
         }
         
         // Check for task reminders every minute
