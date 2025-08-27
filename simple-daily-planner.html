@@ -1,0 +1,1094 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dagplanner</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #f8fafc;
+            color: #1e293b;
+            line-height: 1.5;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        
+        .header {
+            background: white;
+            padding: 24px;
+            border-radius: 12px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            margin-bottom: 24px;
+        }
+        
+        .header h1 {
+            color: #0f172a;
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        
+        .date {
+            color: #64748b;
+            font-size: 16px;
+        }
+        
+        .nav-tabs {
+            display: flex;
+            gap: 8px;
+            margin-top: 16px;
+        }
+        
+        .nav-tab {
+            background: #f1f5f9;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 500;
+            color: #64748b;
+        }
+        
+        .nav-tab.active {
+            background: #3b82f6;
+            color: white;
+        }
+        
+        .section {
+            background: white;
+            padding: 24px;
+            border-radius: 12px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            margin-bottom: 24px;
+        }
+        
+        .section-title {
+            font-size: 20px;
+            font-weight: 600;
+            margin-bottom: 20px;
+            color: #0f172a;
+        }
+        
+        .task-form {
+            background: #f1f5f9;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 24px;
+            border: 2px dashed #cbd5e1;
+        }
+        
+        .task-form.active {
+            border-color: #3b82f6;
+            background: #eff6ff;
+        }
+        
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr auto;
+            gap: 12px;
+            margin-bottom: 12px;
+        }
+        
+        .form-group {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+        
+        .form-group label {
+            font-weight: 500;
+            font-size: 14px;
+            color: #374151;
+        }
+        
+        .form-group input, .form-group select {
+            padding: 8px 12px;
+            border: 1px solid #d1d5db;
+            border-radius: 6px;
+            font-size: 14px;
+        }
+        
+        .form-group input:focus, .form-group select:focus {
+            outline: none;
+            border-color: #3b82f6;
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+        }
+        
+        .time-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 12px;
+        }
+        
+        .btn {
+            background: #3b82f6;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 500;
+        }
+        
+        .btn:hover {
+            background: #2563eb;
+        }
+        
+        .btn:disabled {
+            background: #9ca3af;
+            cursor: not-allowed;
+        }
+        
+        .btn-secondary {
+            background: #6b7280;
+        }
+        
+        .btn-secondary:hover {
+            background: #4b5563;
+        }
+        
+        .btn-success {
+            background: #059669;
+        }
+        
+        .btn-success:hover {
+            background: #047857;
+        }
+        
+        .btn-danger {
+            background: #dc2626;
+        }
+        
+        .btn-danger:hover {
+            background: #b91c1c;
+        }
+        
+        .task-item {
+            background: white;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            padding: 16px;
+            margin-bottom: 12px;
+            transition: all 0.2s;
+        }
+        
+        .task-item:hover {
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        
+        .task-item.completed {
+            opacity: 0.6;
+            background: #f0fdf4;
+            border-color: #22c55e;
+        }
+        
+        .task-item.overdue {
+            border-color: #ef4444;
+            background: #fef2f2;
+        }
+        
+        .task-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 8px;
+        }
+        
+        .task-title {
+            font-weight: 600;
+            font-size: 16px;
+            text-decoration: none;
+            color: #0f172a;
+        }
+        
+        .task-item.completed .task-title {
+            text-decoration: line-through;
+        }
+        
+        .task-meta {
+            display: flex;
+            gap: 16px;
+            font-size: 14px;
+            color: #6b7280;
+            margin-bottom: 8px;
+        }
+        
+        .task-actions {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+        }
+        
+        .checkbox {
+            width: 20px;
+            height: 20px;
+            cursor: pointer;
+        }
+        
+        .link-btn {
+            background: #059669;
+            font-size: 12px;
+            padding: 4px 8px;
+        }
+        
+        .delete-btn {
+            background: #dc2626;
+            font-size: 12px;
+            padding: 4px 8px;
+        }
+        
+        .move-btn {
+            background: #f59e0b;
+            font-size: 12px;
+            padding: 4px 8px;
+        }
+        
+        .suggestions {
+            margin-top: 12px;
+            padding: 12px;
+            background: #fef3c7;
+            border-radius: 6px;
+            border-left: 4px solid #f59e0b;
+        }
+        
+        .suggestions h4 {
+            font-size: 14px;
+            font-weight: 600;
+            margin-bottom: 8px;
+            color: #92400e;
+        }
+        
+        .suggestion-item {
+            background: white;
+            padding: 8px;
+            margin: 4px 0;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            border: 1px solid #fbbf24;
+        }
+        
+        .suggestion-item:hover {
+            background: #fffbeb;
+        }
+        
+        .progress {
+            background: #e5e7eb;
+            height: 8px;
+            border-radius: 4px;
+            margin-bottom: 24px;
+            overflow: hidden;
+        }
+        
+        .progress-bar {
+            background: #22c55e;
+            height: 100%;
+            transition: width 0.3s;
+        }
+        
+        .empty-state {
+            text-align: center;
+            padding: 40px;
+            color: #6b7280;
+        }
+        
+        .notification {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: #3b82f6;
+            color: white;
+            padding: 12px 16px;
+            border-radius: 6px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+            transform: translateX(300px);
+            transition: transform 0.3s;
+            z-index: 1000;
+        }
+        
+        .notification.show {
+            transform: translateX(0);
+        }
+        
+        .notification.success {
+            background: #059669;
+        }
+        
+        .notification.warning {
+            background: #f59e0b;
+        }
+        
+        .notification.error {
+            background: #dc2626;
+        }
+        
+        .current-time {
+            font-size: 14px;
+            color: #6b7280;
+            margin-top: 8px;
+        }
+        
+        .history-day {
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            margin-bottom: 16px;
+            overflow: hidden;
+        }
+        
+        .history-header {
+            background: #e2e8f0;
+            padding: 12px 16px;
+            font-weight: 600;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .history-stats {
+            font-size: 14px;
+            color: #64748b;
+        }
+        
+        .history-tasks {
+            padding: 16px;
+        }
+        
+        .daily-review {
+            background: #f0f9ff;
+            border: 2px solid #0ea5e9;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 24px;
+        }
+        
+        .daily-review h3 {
+            color: #0c4a6e;
+            margin-bottom: 16px;
+            font-size: 18px;
+        }
+        
+        .review-actions {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+        
+        .incomplete-tasks {
+            background: #fef3c7;
+            border: 1px solid #fbbf24;
+            border-radius: 6px;
+            padding: 12px;
+            margin-top: 12px;
+        }
+        
+        .incomplete-task {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px;
+            margin: 4px 0;
+            background: white;
+            border-radius: 4px;
+            border: 1px solid #fbbf24;
+        }
+        
+        .date-picker {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        
+        #currentView {
+            display: block;
+        }
+        
+        #historyView {
+            display: none;
+        }
+        
+        @media (max-width: 768px) {
+            .form-row {
+                grid-template-columns: 1fr;
+            }
+            
+            .time-row {
+                grid-template-columns: 1fr;
+            }
+            
+            .task-header {
+                flex-direction: column;
+                gap: 8px;
+            }
+            
+            .task-meta {
+                flex-wrap: wrap;
+                gap: 8px;
+            }
+            
+            .review-actions {
+                flex-direction: column;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <div class="header">
+            <h1>🎯 Dagplanner</h1>
+            <div class="date" id="currentDate"></div>
+            <div class="current-time" id="currentTime"></div>
+            
+            <div class="nav-tabs">
+                <button class="nav-tab active" onclick="switchView('today')">Vandaag</button>
+                <button class="nav-tab" onclick="switchView('history')">Geschiedenis</button>
+            </div>
+        </div>
+        
+        <!-- Today View -->
+        <div id="currentView">
+            <!-- Daily Review (if there are incomplete tasks from yesterday) -->
+            <div class="daily-review" id="dailyReview" style="display: none;">
+                <h3>🌅 Goedemorgen! Gisteren had je nog onafgemaakte taken</h3>
+                <div class="incomplete-tasks" id="incompleteTasks"></div>
+                <div class="review-actions">
+                    <button class="btn btn-success" onclick="moveAllToToday()">Alles meenemen naar vandaag</button>
+                    <button class="btn btn-secondary" onclick="dismissReview()">Voor later</button>
+                </div>
+            </div>
+            
+            <!-- Progress -->
+            <div class="progress">
+                <div class="progress-bar" id="progressBar"></div>
+            </div>
+            
+            <!-- Tasks Section -->
+            <div class="section">
+                <h2 class="section-title">Drie taken voor vandaag</h2>
+                
+                <!-- Add Task Form -->
+                <div class="task-form" id="taskForm">
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="taskTitle">Wat ga je doen?</label>
+                            <input type="text" id="taskTitle" placeholder="Bijvoorbeeld: Team meeting voorbereiden">
+                        </div>
+                        <button type="button" class="btn" id="addTaskBtn" disabled onclick="addTask()">Toevoegen</button>
+                    </div>
+                    
+                    <div class="time-row">
+                        <div class="form-group">
+                            <label for="taskTime">Starttijd</label>
+                            <input type="time" id="taskTime" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="taskDuration">Tijdsduur (min)</label>
+                            <input type="number" id="taskDuration" min="15" max="480" step="15" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="taskDeadline">Deadline (optioneel)</label>
+                            <input type="date" id="taskDeadline">
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="taskLink">M365 Link (optioneel)</label>
+                        <input type="url" id="taskLink" placeholder="https://...">
+                    </div>
+                    
+                    <!-- Suggestions -->
+                    <div class="suggestions" id="suggestions" style="display: none;">
+                        <h4>💡 Suggesties gebaseerd op je eerdere taken:</h4>
+                        <div id="suggestionsList"></div>
+                    </div>
+                </div>
+                
+                <!-- Task List -->
+                <div id="taskList">
+                    <div class="empty-state">
+                        <p>Nog geen taken voor vandaag.</p>
+                        <p>Begin met je eerste taak boven in te voeren.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- History View -->
+        <div id="historyView">
+            <div class="section">
+                <div class="date-picker">
+                    <button class="btn btn-secondary" onclick="changeHistoryDate(-1)">← Vorige dag</button>
+                    <input type="date" id="historyDate" onchange="loadHistoryForDate()">
+                    <button class="btn btn-secondary" onclick="changeHistoryDate(1)">Volgende dag →</button>
+                </div>
+                
+                <div id="historyContent">
+                    <div class="empty-state">
+                        <p>Selecteer een datum om je geschiedenis te bekijken.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Notification -->
+    <div class="notification" id="notification"></div>
+
+    <script>
+        // State management
+        let tasks = [];
+        let allTaskHistory = JSON.parse(localStorage.getItem('all-task-history') || '{}');
+        let currentView = 'today';
+        
+        // Initialize app
+        document.addEventListener('DOMContentLoaded', function() {
+            updateDateTime();
+            setInterval(updateDateTime, 1000);
+            
+            loadTodaysTasks();
+            checkForYesterdayTasks();
+            setupFormValidation();
+            generateSuggestions();
+            
+            // Set default start time
+            const now = new Date();
+            now.setMinutes(now.getMinutes() + 15);
+            document.getElementById('taskTime').value = now.toTimeString().slice(0, 5);
+            
+            // Set history date to today
+            document.getElementById('historyDate').value = new Date().toISOString().split('T')[0];
+        });
+        
+        function updateDateTime() {
+            const now = new Date();
+            document.getElementById('currentDate').textContent = now.toLocaleDateString('nl-NL', {
+                weekday: 'long',
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric'
+            });
+            document.getElementById('currentTime').textContent = now.toLocaleTimeString('nl-NL', {
+                hour: '2-digit',
+                minute: '2-digit'
+            });
+        }
+        
+        function getTodayKey() {
+            return new Date().toISOString().split('T')[0];
+        }
+        
+        function getYesterdayKey() {
+            const yesterday = new Date();
+            yesterday.setDate(yesterday.getDate() - 1);
+            return yesterday.toISOString().split('T')[0];
+        }
+        
+        function loadTodaysTasks() {
+            const todayKey = getTodayKey();
+            const todaysData = allTaskHistory[todayKey];
+            
+            if (todaysData && todaysData.tasks) {
+                tasks = todaysData.tasks;
+            } else {
+                tasks = [];
+            }
+            
+            renderTasks();
+        }
+        
+        function checkForYesterdayTasks() {
+            const yesterdayKey = getYesterdayKey();
+            const yesterdayData = allTaskHistory[yesterdayKey];
+            
+            if (yesterdayData && yesterdayData.tasks) {
+                const incompleteTasks = yesterdayData.tasks.filter(task => !task.completed);
+                
+                if (incompleteTasks.length > 0 && !localStorage.getItem('reviewDismissed-' + yesterdayKey)) {
+                    showDailyReview(incompleteTasks);
+                }
+            }
+        }
+        
+        function showDailyReview(incompleteTasks) {
+            const reviewDiv = document.getElementById('dailyReview');
+            const incompleteDiv = document.getElementById('incompleteTasks');
+            
+            incompleteDiv.innerHTML = incompleteTasks.map(task => `
+                <div class="incomplete-task">
+                    <div>
+                        <strong>${escapeHtml(task.title)}</strong><br>
+                        <small>⏰ ${task.time} • ⏱️ ${task.duration} min</small>
+                    </div>
+                    <button class="btn move-btn" onclick="moveTaskToToday(${task.id})">Vandaag</button>
+                </div>
+            `).join('');
+            
+            reviewDiv.style.display = 'block';
+        }
+        
+        function moveTaskToToday(taskId) {
+            const yesterdayKey = getYesterdayKey();
+            const yesterdayData = allTaskHistory[yesterdayKey];
+            const task = yesterdayData.tasks.find(t => t.id === taskId);
+            
+            if (task && tasks.length < 3) {
+                // Create new task for today
+                const newTask = {
+                    ...task,
+                    id: Date.now(),
+                    date: new Date().toISOString(),
+                    movedFrom: yesterdayKey
+                };
+                
+                tasks.push(newTask);
+                saveTasks();
+                renderTasks();
+                
+                // Remove from review
+                const incompleteTasks = yesterdayData.tasks.filter(t => !t.completed && t.id !== taskId);
+                if (incompleteTasks.length === 0) {
+                    dismissReview();
+                } else {
+                    checkForYesterdayTasks();
+                }
+                
+                showNotification('Taak toegevoegd aan vandaag!', 'success');
+            } else if (tasks.length >= 3) {
+                showNotification('Je hebt al 3 taken voor vandaag', 'warning');
+            }
+        }
+        
+        function moveAllToToday() {
+            const yesterdayKey = getYesterdayKey();
+            const yesterdayData = allTaskHistory[yesterdayKey];
+            const incompleteTasks = yesterdayData.tasks.filter(task => !task.completed);
+            
+            let moved = 0;
+            for (const task of incompleteTasks) {
+                if (tasks.length < 3) {
+                    const newTask = {
+                        ...task,
+                        id: Date.now() + moved,
+                        date: new Date().toISOString(),
+                        movedFrom: yesterdayKey
+                    };
+                    tasks.push(newTask);
+                    moved++;
+                }
+            }
+            
+            if (moved > 0) {
+                saveTasks();
+                renderTasks();
+                dismissReview();
+                showNotification(`${moved} ${moved === 1 ? 'taak' : 'taken'} toegevoegd aan vandaag!`, 'success');
+            }
+        }
+        
+        function dismissReview() {
+            const yesterdayKey = getYesterdayKey();
+            localStorage.setItem('reviewDismissed-' + yesterdayKey, 'true');
+            document.getElementById('dailyReview').style.display = 'none';
+        }
+        
+        function setupFormValidation() {
+            const titleInput = document.getElementById('taskTitle');
+            const timeInput = document.getElementById('taskTime');
+            const durationInput = document.getElementById('taskDuration');
+            const addBtn = document.getElementById('addTaskBtn');
+            
+            function validateForm() {
+                const isValid = titleInput.value.trim() && timeInput.value && durationInput.value;
+                addBtn.disabled = !isValid || tasks.length >= 3;
+                
+                if (isValid && tasks.length < 3) {
+                    document.getElementById('taskForm').classList.add('active');
+                } else {
+                    document.getElementById('taskForm').classList.remove('active');
+                }
+            }
+            
+            titleInput.addEventListener('input', validateForm);
+            timeInput.addEventListener('change', validateForm);
+            durationInput.addEventListener('input', validateForm);
+            titleInput.addEventListener('input', generateSuggestions);
+            
+            titleInput.addEventListener('keypress', function(e) {
+                if (e.key === 'Enter' && !addBtn.disabled) {
+                    addTask();
+                }
+            });
+        }
+        
+        function addTask() {
+            if (tasks.length >= 3) {
+                showNotification('Je kunt maximaal 3 taken per dag plannen', 'warning');
+                return;
+            }
+            
+            const title = document.getElementById('taskTitle').value.trim();
+            const time = document.getElementById('taskTime').value;
+            const duration = parseInt(document.getElementById('taskDuration').value);
+            const deadline = document.getElementById('taskDeadline').value;
+            const link = document.getElementById('taskLink').value.trim();
+            
+            if (!title || !time || !duration) {
+                showNotification('Vul alle verplichte velden in', 'error');
+                return;
+            }
+            
+            const task = {
+                id: Date.now(),
+                title,
+                time,
+                duration,
+                deadline: deadline || null,
+                link: link || null,
+                completed: false,
+                date: new Date().toISOString(),
+                createdAt: new Date().toISOString()
+            };
+            
+            tasks.push(task);
+            saveTasks();
+            renderTasks();
+            clearForm();
+            
+            showNotification(`Taak toegevoegd! Gepland om ${time}`, 'success');
+            document.getElementById('suggestions').style.display = 'none';
+        }
+        
+        function clearForm() {
+            document.getElementById('taskTitle').value = '';
+            document.getElementById('taskDuration').value = '';
+            document.getElementById('taskDeadline').value = '';
+            document.getElementById('taskLink').value = '';
+            document.getElementById('addTaskBtn').disabled = true;
+            document.getElementById('taskForm').classList.remove('active');
+            
+            // Set next default time
+            const lastTime = document.getElementById('taskTime').value;
+            if (lastTime) {
+                const [hours, minutes] = lastTime.split(':');
+                const nextTime = new Date();
+                nextTime.setHours(parseInt(hours), parseInt(minutes));
+                nextTime.setMinutes(nextTime.getMinutes() + parseInt(document.getElementById('taskDuration').value || 60));
+                document.getElementById('taskTime').value = nextTime.toTimeString().slice(0, 5);
+            }
+        }
+        
+        function renderTasks() {
+            const taskList = document.getElementById('taskList');
+            const progressBar = document.getElementById('progressBar');
+            
+            if (tasks.length === 0) {
+                taskList.innerHTML = `
+                    <div class="empty-state">
+                        <p>Nog geen taken voor vandaag.</p>
+                        <p>Begin met je eerste taak boven in te voeren.</p>
+                    </div>
+                `;
+                progressBar.style.width = '0%';
+                return;
+            }
+            
+            // Sort tasks by time
+            const sortedTasks = [...tasks].sort((a, b) => a.time.localeCompare(b.time));
+            const now = new Date();
+            const today = now.toISOString().split('T')[0];
+            
+            taskList.innerHTML = sortedTasks.map(task => {
+                let itemClass = 'task-item';
+                if (task.completed) itemClass += ' completed';
+                
+                // Check if overdue (deadline passed)
+                if (task.deadline && task.deadline < today && !task.completed) {
+                    itemClass += ' overdue';
+                }
+                
+                return `
+                    <div class="${itemClass}">
+                        <div class="task-header">
+                            <div>
+                                <div class="task-title">${escapeHtml(task.title)}</div>
+                                <div class="task-meta">
+                                    <span>⏰ ${task.time}</span>
+                                    <span>⏱️ ${task.duration} min</span>
+                                    ${task.deadline ? `<span>📅 ${new Date(task.deadline).toLocaleDateString('nl-NL')}</span>` : ''}
+                                    ${task.movedFrom ? `<span>📤 Van ${new Date(task.movedFrom).toLocaleDateString('nl-NL')}</span>` : ''}
+                                </div>
+                            </div>
+                            <div class="task-actions">
+                                <input type="checkbox" class="checkbox" ${task.completed ? 'checked' : ''} 
+                                       onchange="toggleTask(${task.id})">
+                                ${task.link ? `<button class="btn link-btn" onclick="openLink('${task.link}')">Open</button>` : ''}
+                                <button class="btn delete-btn" onclick="deleteTask(${task.id})">×</button>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+            
+            // Update progress
+            const completedCount = tasks.filter(t => t.completed).length;
+            const progress = (completedCount / tasks.length) * 100;
+            progressBar.style.width = progress + '%';
+        }
+        
+        function toggleTask(id) {
+            const task = tasks.find(t => t.id === id);
+            if (task) {
+                task.completed = !task.completed;
+                task.completedAt = task.completed ? new Date().toISOString() : null;
+                saveTasks();
+                renderTasks();
+                
+                if (task.completed) {
+                    showNotification(`Taak voltooid! 🎉`, 'success');
+                } else {
+                    showNotification('Taak weer geactiveerd', 'info');
+                }
+            }
+        }
+        
+        function deleteTask(id) {
+            if (confirm('Weet je zeker dat je deze taak wilt verwijderen?')) {
+                tasks = tasks.filter(t => t.id !== id);
+                saveTasks();
+                renderTasks();
+                showNotification('Taak verwijderd', 'info');
+            }
+        }
+        
+        function openLink(url) {
+            window.open(url, '_blank');
+            showNotification('Link geopend in nieuw venster', 'info');
+        }
+        
+        function generateSuggestions() {
+            const input = document.getElementById('taskTitle').value.toLowerCase();
+            const suggestionsDiv = document.getElementById('suggestions');
+            const suggestionsList = document.getElementById('suggestionsList');
+            
+            if (input.length < 2) {
+                suggestionsDiv.style.display = 'none';
+                return;
+            }
+            
+            // Get unique task titles from all history
+            const allHistoricalTasks = [];
+            Object.values(allTaskHistory).forEach(day => {
+                if (day.tasks) {
+                    day.tasks.forEach(task => {
+                        if (!allHistoricalTasks.includes(task.title)) {
+                            allHistoricalTasks.push(task.title);
+                        }
+                    });
+                }
+            });
+            
+            const historicalSuggestions = allHistoricalTasks
+                .filter(title => title.toLowerCase().includes(input))
+                .slice(0, 3);
+            
+            // Common task suggestions
+            const commonSuggestions = [
+                'Email beantwoorden',
+                'Team meeting voorbereiden',
+                'Project status updaten',
+                'Rapportage maken',
+                'Code review doen',
+                'Client presentatie voorbereiden',
+                'Sprint planning',
+                'Documentatie bijwerken',
+                'Budget review',
+                'Team 1-on-1 gesprekken'
+            ].filter(title => title.toLowerCase().includes(input) && !historicalSuggestions.includes(title))
+             .slice(0, 5 - historicalSuggestions.length);
+            
+            const allSuggestions = [...historicalSuggestions, ...commonSuggestions];
+            
+            if (allSuggestions.length > 0) {
+                suggestionsList.innerHTML = allSuggestions.map(suggestion => 
+                    `<div class="suggestion-item" onclick="selectSuggestion('${escapeHtml(suggestion)}')">${escapeHtml(suggestion)}</div>`
+                ).join('');
+                suggestionsDiv.style.display = 'block';
+            } else {
+                suggestionsDiv.style.display = 'none';
+            }
+        }
+        
+        function selectSuggestion(title) {
+            document.getElementById('taskTitle').value = title;
+            document.getElementById('suggestions').style.display = 'none';
+            document.getElementById('taskDuration').focus();
+            document.getElementById('taskTitle').dispatchEvent(new Event('input'));
+        }
+        
+        function switchView(view) {
+            currentView = view;
+            
+            // Update tab buttons
+            document.querySelectorAll('.nav-tab').forEach(tab => tab.classList.remove('active'));
+            
+            if (view === 'today') {
+                document.getElementById('currentView').style.display = 'block';
+                document.getElementById('historyView').style.display = 'none';
+                document.querySelector('[onclick="switchView(\'today\')"]').classList.add('active');
+            } else if (view === 'history') {
+                document.getElementById('currentView').style.display = 'none';
+                document.getElementById('historyView').style.display = 'block';
+                document.querySelector('[onclick="switchView(\'history\')"]').classList.add('active');
+                loadHistoryForDate();
+            }
+        }
+        
+        function loadHistoryForDate() {
+            const dateInput = document.getElementById('historyDate');
+            const selectedDate = dateInput.value;
+            const historyContent = document.getElementById('historyContent');
+            
+            const dayData = allTaskHistory[selectedDate];
+            
+            if (!dayData || !dayData.tasks || dayData.tasks.length === 0) {
+                historyContent.innerHTML = `
+                    <div class="empty-state">
+                        <p>Geen taken gevonden voor ${new Date(selectedDate).toLocaleDateString('nl-NL')}.</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            const completedTasks = dayData.tasks.filter(t => t.completed);
+            const incompleteTasks = dayData.tasks.filter(t => !t.completed);
+            const totalMinutes = dayData.tasks.reduce((sum, t) => sum + (t.duration || 0), 0);
+            const completedMinutes = completedTasks.reduce((sum, t) => sum + (t.duration || 0), 0);
+            
+            historyContent.innerHTML = `
+                <div class="history-day">
+                    <div class="history-header">
+                        <span>${new Date(selectedDate).toLocaleDateString('nl-NL', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</span>
+                        <div class="history-stats">
+                            ${completedTasks.length}/${dayData.tasks.length} taken • ${completedMinutes}/${totalMinutes} min
+                        </div>
+                    </div>
+                    <div class="history-tasks">
+                        ${dayData.tasks.sort((a, b) => a.time.localeCompare(b.time)).map(task => `
+                            <div class="task-item ${task.completed ? 'completed' : ''}" style="margin-bottom: 8px;">
+                                <div class="task-header">
+                                    <div>
+                                        <div class="task-title">${escapeHtml(task.title)}</div>
+                                        <div class="task-meta">
+                                            <span>⏰ ${task.time}</span>
+                                            <span>⏱️ ${task.duration} min</span>
+                                            ${task.deadline ? `<span>📅 ${new Date(task.deadline).toLocaleDateString('nl-NL')}</span>` : ''}
+                                            ${task.completedAt ? `<span>✅ ${new Date(task.completedAt).toLocaleTimeString('nl-NL', {hour: '2-digit', minute: '2-digit'})}</span>` : ''}
+                                        </div>
+                                    </div>
+                                    <div class="task-actions">
+                                        ${task.link ? `<button class="btn link-btn" onclick="openLink('${task.link}')">Open</button>` : ''}
+                                        ${!task.completed && selectedDate !== getTodayKey() && tasks.length < 3 ? 
+                                          `<button class="btn move-btn" onclick="moveHistoryTaskToToday('${selectedDate}', ${task.id})">Naar vandaag</button>` : ''}
+                                    </div>
+                                </div>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+            `;
+        }
+        
+        function changeHistoryDate(days) {
+            const dateInput = document.getElementById('historyDate');
+            const currentDate = new Date(dateInput.value);
+            currentDate.setDate(currentDate.getDate() + days);
+            dateInput.value = currentDate.toISOString().split('T')[0];
+            loadHistoryForDate();
+        }
+        
+        function moveHistoryTaskToToday(fromDate, taskId) {
+            const dayData = allTaskHistory[fromDate];
+            const task = dayData.tasks.find(t => t.id === taskId);
+            
+            if (task && tasks.length < 3) {
+                const newTask = {
+                    ...task,
+                    id: Date.now(),
+                    date: new Date().toISOString(),
+                    movedFrom: fromDate,
+                    completed: false,
+                    completedAt: null
+                };
+                
+                tasks.push(newTask);
+                saveTasks();
+                
+                showNotification('Taak toegevoegd aan vandaag!', 'success');
+                
+                // Refresh current view if we're viewing today
+                if (currentView === 'today') {
+                    renderTasks();
+                }
+            } else if (tasks.length >= 3) {
+                showNotification('Je hebt al 3 taken voor vandaag', 'warning');
+            }
+        }
+        
+        function saveTasks() {
+            const todayKey = getTodayKey();
+            
+            if (!allTaskHistory[todayKey]) {
+                allTaskHistory[todayKey] = {};
+            }
+            
+            allTaskHistory[todayKey].tasks = tasks;
+            allTaskHistory[todayKey].date = todayKey;
+            
+            localStorage.setItem('all-task-history', JSON.stringify(allTaskHistory));
+        }
+        
+        function showNotification(message, type = 'info') {
+            const notification = document.getElementById('notification');
+            notification.textContent = message;
+            notification.className = `notification ${type}`;
+            notification.classList.add('show');
+            
+            setTimeout(() => {
+                notification.classList.remove('show');
+            }, 3000);
+        }
+        
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+        
+        // Check for task reminders every minute
+        setInterval(() => {
+            if (currentView !== 'today') return;
+            
+            const now = new Date();
+            const currentTime = now.toTimeString().slice(0, 5);
+            
+            tasks.forEach(task => {
+                if (!task.completed && task.time === currentTime && !task.notified) {
+                    showNotification(`⏰ Tijd voor: ${task.title}`, 'reminder');
+                    task.notified = true;
+                    saveTasks();
+                }
+            });
+        }, 60000);
+    </script>
+</body>
+</html>
